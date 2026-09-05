@@ -1,4 +1,4 @@
-// ==================== API 处理模块（分页 + 错误处理）0====================
+// ==================== API 处理模块（分页 + 错误处理）====================
 
 import { json, errorResponse, generateSlug, deriveHMACKey, escapeHtml } from './lib/utils.js';
 import { generateToken, authenticateRequest, hashPassword, verifyPasswordHash } from './lib/auth.js';
@@ -206,6 +206,9 @@ export async function handleAPI(request, env, path) {
     if (path === '/api/tags' && method === 'GET') {
       return handleGetTags(env);
     }
+    if (path === '/api/visit' && method === 'POST') {
+      return handleRecordVisit(request, env);
+    }
 
     // ========== 认证检查（以下 API 需要管理员权限）==========
     const isAuthed = await authenticateRequest(request, env);
@@ -269,6 +272,11 @@ export async function handleAPI(request, env, path) {
     }
     if (path === '/api/admin/images' && method === 'DELETE') {
       return handleDeleteImageAdmin(request, env);
+    }
+
+    // 访问统计（后台）
+    if (path === '/api/admin/visit-stats' && method === 'GET') {
+      return handleAdminVisitStats(request, env);
     }
 
     // Agent 密钥管理（MCP 接入）
@@ -787,6 +795,33 @@ async function handleDeleteCategory(request, env) {
   }
 }
 
+// 获取访问统计（今日/累计/按天）
+async function handleAdminVisitStats(request, env) {
+  try {
+    const now = new Date();
+    const bjDate = new Date(now.getTime() + 8 * 3600000).toISOString().substring(0, 10);
+    const today = await env.DB.prepare(
+      "SELECT COUNT(*) as pv, COUNT(DISTINCT ip) as uip FROM visits WHERE date=?"
+    ).bind(bjDate).first();
+    const total = await env.DB.prepare(
+      "SELECT COUNT(*) as pv, COUNT(DISTINCT ip) as uip FROM visits"
+    ).first();
+    const { results } = await env.DB.prepare(
+      "SELECT date, COUNT(*) as pv, COUNT(DISTINCT ip) as uip FROM visits GROUP BY date ORDER BY date DESC LIMIT 20"
+    ).all();
+    return json({
+      todayPv: today ? today.pv : 0,
+      todayUip: today ? today.uip : 0,
+      totalPv: total ? total.pv : 0,
+      totalUip: total ? total.uip : 0,
+      daily: results || []
+    });
+  } catch (e) {
+    console.error('[API] 获取访问统计失败:', e);
+    return json({ todayPv: 0, todayUip: 0, totalPv: 0, totalUip: 0, daily: [] }, 500);
+  }
+}
+
 // 允许写入的设置键名白名单（与 db.js defaultSettings 保持一致）
 const SETTINGS_WHITELIST = [
   'site_name', 'site_description', 'site_bio', 'site_author', 'site_created_at',
@@ -1117,5 +1152,21 @@ async function handleGetTags(env) {
   } catch (e) {
     console.error('[API] 获取标签失败:', e);
     return json([]);
+  }
+}
+
+// 记录一次访问（前端 beacon 上报）
+async function handleRecordVisit(request, env) {
+  try {
+    const ip = (request.headers.get('CF-Connecting-IP') || '').trim();
+    if (!ip) return json({ ok: false });
+    const now = new Date();
+    const bjDate = new Date(now.getTime() + 8 * 3600000).toISOString().substring(0, 10);
+    await env.DB.prepare("INSERT INTO visits (date, ip, created_at) VALUES (?, ?, ?)")
+      .bind(bjDate, ip, now.toISOString()).run();
+    return json({ ok: true });
+  } catch (e) {
+    console.error('[API] 记录访问失败:', e);
+    return json({ ok: false });
   }
 }
