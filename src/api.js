@@ -735,23 +735,56 @@ async function handlePermanentDelete(request, env) {
   return json({ success: true });
 }
 
+/**
+ * 保存分类（已修复：校验、自动生成 slug、按 name 自动匹配已有分类避免 UNIQUE 冲突、查重、异常兜底）
+ */
 async function handleSaveCategory(request, env) {
-  const body = await request.json();
-  if (body.id) {
-    await env.DB.prepare("UPDATE categories SET name=?, slug=?, description=? WHERE id=?")
-      .bind(body.name, body.slug, body.description || '', body.id).run();
-  } else {
-    await env.DB.prepare("INSERT INTO categories (name, slug, description) VALUES (?, ?, ?)")
-      .bind(body.name, body.slug, body.description || '').run();
+  try {
+    const body = await request.json();
+    const name = String(body.name || '').trim();
+    let slug = String(body.slug || '').trim();
+    if (!name) return errorResponse('分类名称不能为空', 400);
+    if (!slug) slug = generateSlug(name);
+    const description = body.description || '';
+
+    // 查找与本次提交 name 相同的分类（用于判断是新建还是更新，避免 name UNIQUE 冲突）
+    const byName = await env.DB.prepare(
+      "SELECT id, slug FROM categories WHERE name=? LIMIT 1"
+    ).bind(name).first();
+
+    // 目标行：优先使用前端提交的 id；否则若存在同名分类，则更新它（自动修正 slug）
+    const targetId = body.id || (byName ? byName.id : null);
+
+    // slug 冲突检测（排除目标自身）
+    const slugConflict = await env.DB.prepare(
+      "SELECT id FROM categories WHERE slug=? AND id != ? LIMIT 1"
+    ).bind(slug, targetId || 0).first();
+    if (slugConflict) return errorResponse('英文ID已存在', 400);
+
+    if (targetId) {
+      await env.DB.prepare("UPDATE categories SET name=?, slug=?, description=? WHERE id=?")
+        .bind(name, slug, description, targetId).run();
+    } else {
+      await env.DB.prepare("INSERT INTO categories (name, slug, description) VALUES (?, ?, ?)")
+        .bind(name, slug, description).run();
+    }
+    return json({ success: true });
+  } catch (e) {
+    console.error('[API] 保存分类失败:', e);
+    return json({ success: false, error: '保存分类失败: ' + (e.message || 'Error') }, 500);
   }
-  return json({ success: true });
 }
 
 async function handleDeleteCategory(request, env) {
-  const id = new URL(request.url).searchParams.get('id');
-  if (!id) return errorResponse('缺少 id', 400);
-  await env.DB.prepare("DELETE FROM categories WHERE id=?").bind(id).run();
-  return json({ success: true });
+  try {
+    const id = new URL(request.url).searchParams.get('id');
+    if (!id) return errorResponse('缺少 id', 400);
+    await env.DB.prepare("DELETE FROM categories WHERE id=?").bind(id).run();
+    return json({ success: true });
+  } catch (e) {
+    console.error('[API] 删除分类失败:', e);
+    return json({ success: false, error: '删除分类失败: ' + (e.message || 'Error') }, 500);
+  }
 }
 
 // 允许写入的设置键名白名单（与 db.js defaultSettings 保持一致）
