@@ -322,6 +322,23 @@ export function getAdminHTML() {
           <!-- 文章列表 -->
           <div v-if="!editingId">
           <div class="page-header"><h2>文章管理</h2></div>
+          <div class="card" style="margin-bottom:16px">
+            <h3 style="margin-bottom:12px">📊 访问统计</h3>
+            <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px">
+              <div><div style="font-size:24px;font-weight:800;color:#19c8b9">{{visitStats.todayPv}}</div><div style="color:#9f927d;font-size:13px">今日访问(PV)</div></div>
+              <div><div style="font-size:24px;font-weight:800;color:#19c8b9">{{visitStats.todayUip}}</div><div style="color:#9f927d;font-size:13px">今日独立IP</div></div>
+              <div><div style="font-size:24px;font-weight:800;color:#19c8b9">{{visitStats.totalPv}}</div><div style="color:#9f927d;font-size:13px">累计访问(PV)</div></div>
+              <div><div style="font-size:24px;font-weight:800;color:#19c8b9">{{visitStats.totalUip}}</div><div style="color:#9f927d;font-size:13px">累计独立IP</div></div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:14px">
+              <thead><tr style="background:#f0e8d8"><th style="padding:8px">日期</th><th style="padding:8px">访问量</th><th style="padding:8px">独立IP</th></tr></thead>
+              <tbody>
+                <tr v-for="d in visitStats.daily" :key="d.date" style="border-top:1px solid #e8e0cc">
+                  <td style="padding:8px">{{d.date}}</td><td style="padding:8px">{{d.pv}}</td><td style="padding:8px">{{d.uip}}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
           <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
             <button class="btn" @click="openAdd()">新建文章</button>
             <button class="btn btn-import" @click="showImportModal=true">导入文章</button>
@@ -795,7 +812,13 @@ export function getAdminHTML() {
         const iconList = ref([]);
         const emojiLoading = ref(false);
         const loadedIconfontUrl = ref('');
-        const check = () => { const t = localStorage.getItem('token'); if (t) { logged.value = true; const savedPage = localStorage.getItem('adminPage') || 'posts'; currentPage.value = (savedPage === 'profile' || savedPage === 'appearance') ? 'personal' : savedPage; loadPosts(); loadCategories(); loadSettings(); loadTrash(); loadAgentKeys(); if (currentPage.value === 'images') loadImages(); } };
+        // 访问统计相关
+        const visitStats = ref({ todayPv: 0, todayUip: 0, totalPv: 0, totalUip: 0, daily: [] });
+        const loadVisitStats = async () => {
+          try { const r = await api('/api/admin/visit-stats'); visitStats.value = r.data || { todayPv:0,todayUip:0,totalPv:0,totalUip:0,daily:[] }; }
+          catch (e) { /* 忽略 */ }
+        };
+        const check = () => { const t = localStorage.getItem('token'); if (t) { logged.value = true; const savedPage = localStorage.getItem('adminPage') || 'posts'; currentPage.value = (savedPage === 'profile' || savedPage === 'appearance') ? 'personal' : savedPage; loadPosts(); loadCategories(); loadSettings(); loadTrash(); loadAgentKeys(); loadVisitStats(); if (currentPage.value === 'images') loadImages(); } };
         const api = (url, o = {}) => {
           o.headers = o.headers || {};
           o.headers['Authorization'] = 'Bearer ' + localStorage.getItem('token');
@@ -1339,7 +1362,7 @@ export function getAdminHTML() {
 
         watch(currentPage, (v) => { localStorage.setItem('adminPage', v); if (v === 'images' && !imagesLoaded.value) loadImages(); });
         onMounted(() => { check(); document.addEventListener('click', closeAllSelects); });
-        return { logged, username, password, login, logout, posts, editingId, form, coverPreview, toast, openAdd, cancelNewPost, toggleEdit, handleCoverChange, handleCoverDrop, handleDrop, deleteCover, savePost, deletePost, categories, currentPage, postPage, postPageSize, categoryForm, saveCategory, deleteCategory, editCategory, editingCategory, settingsForm, saveSiteSettings, savePersonalSettings, sitePasswordSet, trashPosts, restorePost, permanentDelete, confirmModal, showConfirm, insertMd, applyTheme, applyCopyrightTemplate, applyFooterTemplate, customSelects, toggleSelect, selectOption, getSelectLabel, showImportModal, importFileName, importFileData, importing, importResult, handleImportFile, importPosts, currentPinnedId, setPinnedPost, iconList, emojiLoading, insertEmoji, images, r2Configured, imagesLoaded, imagesLoadError, showImagePicker, selectedImage, pickUploading, locationOrigin, imageSizes, captureImageSize, loadImages, handleImageUpload, openImagePicker, insertPickedImage, copyImageLink, deleteImage, agentKeys, agentKeyForm, mcpAddress, loadAgentKeys, maskKey, copyText, generateAgentKey, resetAgentKey, revokeAgentKey };
+        return { logged, username, password, login, logout, posts, editingId, form, coverPreview, toast, openAdd, cancelNewPost, toggleEdit, handleCoverChange, handleCoverDrop, handleDrop, deleteCover, savePost, deletePost, categories, currentPage, postPage, postPageSize, categoryForm, saveCategory, deleteCategory, editCategory, editingCategory, settingsForm, saveSiteSettings, savePersonalSettings, sitePasswordSet, trashPosts, restorePost, permanentDelete, confirmModal, showConfirm, insertMd, applyTheme, applyCopyrightTemplate, applyFooterTemplate, customSelects, toggleSelect, selectOption, getSelectLabel, showImportModal, importFileName, importFileData, importing, importResult, handleImportFile, importPosts, currentPinnedId, setPinnedPost, iconList, emojiLoading, insertEmoji, images, r2Configured, imagesLoaded, imagesLoadError, showImagePicker, selectedImage, pickUploading, locationOrigin, imageSizes, captureImageSize, loadImages, handleImageUpload, openImagePicker, insertPickedImage, copyImageLink, deleteImage, agentKeys, agentKeyForm, mcpAddress, loadAgentKeys, maskKey, copyText, generateAgentKey, resetAgentKey, revokeAgentKey, visitStats };
       }
     }).mount('#app');
   <\/script>
