@@ -489,6 +489,9 @@ export function getFrontendHTML(settings, requestUrl) {
     }
   })();
   </script>
+  <script>
+  (function(){ try { fetch('/api/visit',{method:'POST',keepalive:true}).catch(function(){}); } catch(e){} })();
+  </script>
 </body>
 </html>`;
 }
