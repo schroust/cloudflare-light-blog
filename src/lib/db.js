@@ -129,6 +129,19 @@ export async function initDB(env) {
       console.log('[DB] 创建 agent_logs 表');
     }
 
+    // ========== 3.3 创建访问统计表（IP + PV）==========
+    if (!(await tableExists(DB, 'visits'))) {
+      await DB.prepare(`
+        CREATE TABLE visits (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL,
+          ip TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      `).run();
+      console.log('[DB] 创建 visits 表');
+    }
+
     // ========== 4. 创建索引 ==========
     try {
       await DB.prepare("CREATE INDEX IF NOT EXISTS idx_posts_status ON posts(status)").run();
