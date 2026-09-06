@@ -638,7 +638,7 @@ export function getPostHTML(post, settings, requestUrl) {
   })();
   </script>
   <script>
-  (function(){ try { fetch('/api/visit',{method:'POST',keepalive:true}).catch(function(){}); } catch(e){} })();
+  (function(){ try { if (localStorage.getItem('owner_skip')) return; fetch('/api/visit',{method:'POST',keepalive:true}).catch(function(){}); } catch(e){} })();
   </script>
 </body>
 </html>`;
