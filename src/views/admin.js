@@ -818,7 +818,7 @@ export function getAdminHTML() {
           try { const r = await api('/api/admin/visit-stats'); visitStats.value = r.data || { todayPv:0,todayUip:0,totalPv:0,totalUip:0,daily:[] }; }
           catch (e) { /* 忽略 */ }
         };
-        const check = () => { const t = localStorage.getItem('token'); if (t) { logged.value = true; const savedPage = localStorage.getItem('adminPage') || 'posts'; currentPage.value = (savedPage === 'profile' || savedPage === 'appearance') ? 'personal' : savedPage; loadPosts(); loadCategories(); loadSettings(); loadTrash(); loadAgentKeys(); loadVisitStats(); if (currentPage.value === 'images') loadImages(); } };
+        const check = () => { localStorage.setItem('owner_skip', '1'); const t = localStorage.getItem('token'); if (t) { logged.value = true; const savedPage = localStorage.getItem('adminPage') || 'posts'; currentPage.value = (savedPage === 'profile' || savedPage === 'appearance') ? 'personal' : savedPage; loadPosts(); loadCategories(); loadSettings(); loadTrash(); loadAgentKeys(); loadVisitStats(); if (currentPage.value === 'images') loadImages(); } };
         const api = (url, o = {}) => {
           o.headers = o.headers || {};
           o.headers['Authorization'] = 'Bearer ' + localStorage.getItem('token');
